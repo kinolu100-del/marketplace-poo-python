@@ -60,10 +60,12 @@ def ler_inteiro(
     mensagem: str,
     minimo: Optional[int] = None,
     maximo: Optional[int] = None,
-) -> int:
+    permitir_vazio: bool = False,
+) -> Optional[int]:
     """
     Lê um número inteiro com validação defensiva contra erros de digitação
     e restrição opcional de valores mínimos e máximos.
+    Se permitir_vazio for True e a entrada estiver em branco, retorna None.
     """
     while True:
         try:
@@ -71,6 +73,8 @@ def ler_inteiro(
         except (KeyboardInterrupt, EOFError):
             print("\nOperação cancelada.")
             raise
+        if permitir_vazio and not bruto:
+            return None
         try:
             numero = int(bruto)
         except ValueError:
@@ -85,28 +89,56 @@ def ler_inteiro(
         return numero
 
 
+def ler_inteiro_opcional(
+    mensagem: str,
+    minimo: Optional[int] = None,
+    maximo: Optional[int] = None,
+) -> Optional[int]:
+    """
+    Variante de ler_inteiro que aceita entrada vazia (Enter), retornando None.
+    """
+    return ler_inteiro(mensagem, minimo=minimo, maximo=maximo, permitir_vazio=True)
+
+
 def ler_decimal(
     mensagem: str,
-    minimo: Optional[Decimal] = None,
-) -> Decimal:
+    minimo: Optional[Union[Decimal, float, int]] = None,
+    permitir_vazio: bool = False,
+) -> Optional[Decimal]:
     """
     Lê um número monetário/fracionário, convertendo vírgula para ponto e retornando Decimal.
+    Se permitir_vazio for True e a entrada estiver em branco, retorna None.
     """
     while True:
         try:
-            bruto = input(mensagem).strip().replace(",", ".")
+            bruto = input(mensagem).strip()
         except (KeyboardInterrupt, EOFError):
             print("\nOperação cancelada.")
             raise
+        if permitir_vazio and not bruto:
+            return None
+        bruto = bruto.replace(",", ".")
         try:
             dec = Decimal(bruto).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         except (InvalidOperation, ValueError):
             print("  [!] Entrada inválida: Digite um número decimal válido (ex: 49.90 ou 49,90).")
             continue
-        if minimo is not None and dec < minimo:
-            print(f"  [!] O valor mínimo permitido é {minimo}.")
-            continue
+        if minimo is not None:
+            minimo_dec = minimo if isinstance(minimo, Decimal) else Decimal(str(minimo))
+            if dec < minimo_dec:
+                print(f"  [!] O valor mínimo permitido é {minimo_dec}.")
+                continue
         return dec
+
+
+def ler_decimal_opcional(
+    mensagem: str,
+    minimo: Optional[Union[Decimal, float, int]] = None,
+) -> Optional[Decimal]:
+    """
+    Variante de ler_decimal que aceita entrada vazia (Enter), retornando None.
+    """
+    return ler_decimal(mensagem, minimo=minimo, permitir_vazio=True)
 
 
 def ler_email(mensagem: str) -> str:

@@ -8,6 +8,12 @@ __pycache__/
 .coverage
 htmlcov/
 
+# SQLite Databases
+marketplace.db
+*.db
+*.sqlite
+*.sqlite3
+
 # Environments
 .env
 .venv/

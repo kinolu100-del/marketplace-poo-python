@@ -53,3 +53,13 @@ class ValorInvalidoError(MarketplaceError, ValueError):
     Herda de ValueError para conformidade estrita com validações clássicas de tipos.
     """
     pass
+
+
+class BancoDeDadosError(MarketplaceError):
+    """
+    Lançada em falhas operacionais ou de persistência do banco de dados relacional.
+    Desacopla erros de sqlite3 da camada de aplicação e interface.
+    """
+    def __init__(self, mensagem: str, causa: object = None):
+        self.causa = causa
+        super().__init__(mensagem)

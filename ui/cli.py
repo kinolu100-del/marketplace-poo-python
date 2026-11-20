@@ -15,7 +15,7 @@ para Nível 3 (banco de dados) e Nível 4 (interface gráfica).
 """
 
 from __future__ import annotations
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from services.usuario_service import UsuarioService
@@ -31,7 +31,9 @@ from ui.helpers import (
     titulo,
     ler_texto,
     ler_inteiro,
+    ler_inteiro_opcional,
     ler_decimal,
+    ler_decimal_opcional,
     ler_email,
     confirmar,
 )
@@ -63,6 +65,7 @@ class MarketplaceCLI:
             3: ("Gestão de Carrinho de Compras", self.menu_carrinho),
             4: ("Gestão de Pedidos e Vendas", self.menu_pedidos),
             5: ("Carregar Dados de Demonstração (Vídeo)", self.acao_carregar_demo),
+            6: ("Reiniciar / Zerar Banco de Dados (Vídeo)", self.acao_reiniciar_banco),
             0: ("Sair do Sistema", None),
         }
 
@@ -73,7 +76,7 @@ class MarketplaceCLI:
             linha("=")
 
             try:
-                escolha = ler_inteiro("Informe a opção desejada: ", 0, 5)
+                escolha = ler_inteiro("Informe a opção desejada: ", 0, 6)
             except (KeyboardInterrupt, EOFError):
                 print("\nEncerrando sistema...")
                 break
@@ -87,8 +90,8 @@ class MarketplaceCLI:
                 acao()
             except (KeyboardInterrupt, EOFError):
                 print("\n[!] Operação cancelada. Retornando ao menu principal...")
-            except MarketplaceError as erro:
-                print(f"\n  [!] Erro de Negócio: {erro}")
+            except (MarketplaceError, ValueError, InvalidOperation) as erro:
+                print(f"\n  [!] Erro: {erro}")
                 input("\nPressione [Enter] para continuar...")
 
     # =================================================================
@@ -342,11 +345,12 @@ class MarketplaceCLI:
         produto = self.produto_service.buscar_por_id(pid)
         print(f"\nEditando: {produto.nome}")
 
-        novo_preco_str = input(f"Novo preço [{produto.preco}]: ").strip()
-        novo_preco = Decimal(novo_preco_str.replace(",", ".")) if novo_preco_str else None
-
-        novo_est_str = input(f"Novo estoque [{produto.estoque}]: ").strip()
-        novo_estoque = int(novo_est_str) if novo_est_str else None
+        novo_preco = ler_decimal_opcional(
+            f"Novo preço [{produto.preco}]: ", minimo=Decimal("0.01")
+        )
+        novo_estoque = ler_inteiro_opcional(
+            f"Novo estoque [{produto.estoque}]: ", minimo=0
+        )
 
         self.produto_service.editar_produto(
             id_produto=pid,
@@ -716,4 +720,22 @@ class MarketplaceCLI:
         print(f"       • Novos produtos criados: {resumo['produtos_novos']}")
         print(f"       • Total no catálogo:      {resumo['total_produtos']}")
         print("\n  Base pronta para a apresentação e testes!")
+        input("\nPressione [Enter] para continuar...")
+
+    # =================================================================
+    # 6. REINICIAR / ZERAR BANCO DE DADOS
+    # =================================================================
+    def acao_reiniciar_banco(self) -> None:
+        """Apaga todos os registros do banco de dados para nova gravação limpa."""
+        titulo("REINICIAR / ZERAR BANCO DE DADOS")
+        print("  [ATENÇÃO] Esta ação apagará permanentemente todos os usuários,")
+        print("  produtos, pedidos e itens do carrinho no banco SQLite.")
+        linha()
+        if confirmar("Deseja realmente apagar todos os dados e reiniciar o banco?"):
+            self.usuario_service.usuario_repo.limpar()
+            self.produto_service.produto_repo.limpar()
+            self.pedido_service.pedido_repo.limpar()
+            print("\n  [OK] Banco de dados reiniciado com sucesso! Todos os dados foram apagados.")
+        else:
+            print("\n  Operação cancelada. Nenhum dado foi alterado.")
         input("\nPressione [Enter] para continuar...")

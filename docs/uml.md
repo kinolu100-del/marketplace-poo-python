@@ -212,6 +212,138 @@ classDiagram
 
 ---
 
+## 🗄️ Diagrama Entidade-Relacionamento (ER - Nível 3 / SQLite)
+
+Modelagem relacional implementada no banco de dados SQLite (`marketplace.db`) via `database/schema.py`:
+
+```mermaid
+erDiagram
+    USUARIOS {
+        INTEGER id PK "AUTOINCREMENT"
+        TEXT nome "NOT NULL"
+        TEXT email UK "NOT NULL, UNIQUE"
+        TEXT tipo "NOT NULL (Cliente | Vendedor)"
+        TEXT endereco "Exclusivo Cliente"
+        TEXT nome_loja "Exclusivo Vendedor"
+    }
+
+    PRODUTOS {
+        INTEGER id PK "AUTOINCREMENT"
+        TEXT nome "NOT NULL"
+        TEXT preco "NOT NULL (formato Decimal 0.00)"
+        INTEGER estoque "NOT NULL, >= 0"
+        TEXT tipo "NOT NULL (Físico | Digital)"
+        INTEGER vendedor_id FK "REFERENCES usuarios(id)"
+        TEXT peso_kg "Exclusivo Físico"
+        TEXT tamanho_mb "Exclusivo Digital"
+        TEXT link_download "Exclusivo Digital"
+    }
+
+    CARRINHO_ITENS {
+        INTEGER cliente_id PK,FK "REFERENCES usuarios(id) ON DELETE CASCADE"
+        INTEGER produto_id PK,FK "REFERENCES produtos(id) ON DELETE CASCADE"
+        INTEGER quantidade "NOT NULL, > 0"
+    }
+
+    PEDIDOS {
+        INTEGER id PK "AUTOINCREMENT"
+        INTEGER cliente_id FK "REFERENCES usuarios(id)"
+        TEXT status "NOT NULL (Confirmado | Cancelado)"
+        TEXT data_criacao "NOT NULL (ISO 8601)"
+    }
+
+    ITENS_PEDIDO {
+        INTEGER id PK "AUTOINCREMENT"
+        INTEGER pedido_id FK "REFERENCES pedidos(id) ON DELETE CASCADE"
+        INTEGER produto_id FK "REFERENCES produtos(id) ON DELETE CASCADE"
+        INTEGER quantidade "NOT NULL, > 0"
+        TEXT preco_unitario "NOT NULL (congelado)"
+        TEXT frete "NOT NULL (congelado)"
+    }
+
+    USUARIOS ||--o{ PRODUTOS : "1:N anuncia (Vendedor)"
+    USUARIOS ||--o{ PEDIDOS : "1:N realiza (Cliente)"
+    USUARIOS ||--o{ CARRINHO_ITENS : "1:N compõe cesta (Cliente)"
+    PRODUTOS ||--o{ CARRINHO_ITENS : "1:N presente em"
+    PEDIDOS ||--|{ ITENS_PEDIDO : "1:N compõe"
+    PRODUTOS ||--o{ ITENS_PEDIDO : "1:N comprado em"
+```
+
+---
+
+## 🏛️ Camada de Persistência Relacional (Nível 3)
+
+```mermaid
+classDiagram
+    direction TB
+
+    class Database {
+        -str db_path
+        -Connection _conn
+        +obter_conexao() Connection
+        +transacao() Generator
+        +limpar_tudo()
+        +fechar()
+    }
+
+    class UsuarioRepository {
+        -Database _db
+        -Dict~int, Usuario~ _cache
+        +adicionar(usuario: Usuario) Usuario
+        +buscar_por_id(id: int) Usuario
+        +buscar_por_email(email: str) Usuario
+        +listar() List~Usuario~
+        +listar_clientes() List~Cliente~
+        +listar_vendedores() List~Vendedor~
+        +remover(id: int) bool
+        +limpar()
+    }
+
+    class ProdutoRepository {
+        -Database _db
+        -UsuarioRepository _usuario_repo
+        -Dict~int, Produto~ _cache
+        +adicionar(produto: Produto) Produto
+        +buscar_por_id(id: int) Produto
+        +listar() List~Produto~
+        +listar_por_vendedor(id: int) List~Produto~
+        +remover(id: int) bool
+        +limpar()
+    }
+
+    class PedidoRepository {
+        -Database _db
+        -UsuarioRepository _usuario_repo
+        -ProdutoRepository _produto_repo
+        -Dict~int, Pedido~ _cache
+        +adicionar(pedido: Pedido) Pedido
+        +buscar_por_id(id: int) Pedido
+        +listar() List~Pedido~
+        +listar_por_cliente(id: int) List~Pedido~
+        +remover(id: int) bool
+        +limpar()
+    }
+
+    class CarrinhoPersistente {
+        -int _cliente_id
+        -Database _db
+        +adicionar(produto: Produto, qtd: int)
+        +remover(produto: Produto)
+        +alterar_quantidade(produto: Produto, qtd: int)
+        +limpar()
+    }
+
+    UsuarioRepository ..> Database : transações e conexão
+    ProdutoRepository ..> Database : transações e conexão
+    PedidoRepository ..> Database : transações e conexão
+    CarrinhoPersistente ..> Database : sincronização direta
+    ProdutoRepository ..> UsuarioRepository : resolve Vendedor
+    PedidoRepository ..> UsuarioRepository : resolve Cliente
+    PedidoRepository ..> ProdutoRepository : resolve Produto
+```
+
+---
+
 ## 📖 Legenda das Relações de POO no Projeto
 
 | Conceito | Representação UML | Aplicação Prática no Código | Explicação Conceitual |
