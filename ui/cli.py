@@ -732,9 +732,15 @@ class MarketplaceCLI:
         print("  produtos, pedidos e itens do carrinho no banco SQLite.")
         linha()
         if confirmar("Deseja realmente apagar todos os dados e reiniciar o banco?"):
-            self.usuario_service.usuario_repo.limpar()
-            self.produto_service.produto_repo.limpar()
-            self.pedido_service.pedido_repo.limpar()
+            # Usa limpar_tudo() do Database que respeita a ordem de FKs em transação única
+            db = self.pedido_service.pedido_repo.db
+            db.limpar_tudo()
+            # Reseta caches em memória e geradores de ID sequenciais
+            for repo in (self.pedido_service.pedido_repo,
+                         self.produto_service.produto_repo,
+                         self.usuario_service.usuario_repo):
+                repo._cache.clear()
+                repo._sincronizar_gerador_id()
             print("\n  [OK] Banco de dados reiniciado com sucesso! Todos os dados foram apagados.")
         else:
             print("\n  Operação cancelada. Nenhum dado foi alterado.")
