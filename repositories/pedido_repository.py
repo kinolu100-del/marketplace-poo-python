@@ -64,6 +64,7 @@ class PedidoRepository:
 
         self._usuario_repo = usuario_repo or UsuarioRepository(db=self._db)
         self._produto_repo = produto_repo or ProdutoRepository(db=self._db, usuario_repo=self._usuario_repo)
+        self._usuario_repo.vincular_produto_repo(self._produto_repo)
         self._cache: Dict[int, Pedido] = {}
         self._sincronizar_gerador_id()
 
@@ -144,12 +145,27 @@ class PedidoRepository:
                         "UPDATE pedidos SET status = ? WHERE id = ?",
                         (pedido.status.value, pedido.id),
                     )
-        except (EstoqueInsuficienteError, OperacaoInvalidaError):
+        except (EstoqueInsuficienteError, OperacaoInvalidaError, sqlite3.Error, Exception) as erro:
+            if not existe:
+                # Restaura em memória o estoque que havia sido baixado preventivamente pelo PedidoService
+                for item in pedido.itens:
+                    try:
+                        cursor_res = self._db.obter_conexao().cursor()
+                        cursor_res.execute("SELECT estoque FROM produtos WHERE id = ?", (item.produto.id,))
+                        r = cursor_res.fetchone()
+                        if r is not None:
+                            item.produto._estoque = r["estoque"]
+                        else:
+                            item.produto._estoque += item.quantidade
+                    except Exception:
+                        item.produto._estoque += item.quantidade
+            if isinstance(erro, (EstoqueInsuficienteError, OperacaoInvalidaError)):
+                raise
+            if isinstance(erro, sqlite3.IntegrityError):
+                raise OperacaoInvalidaError(f"Erro de integridade ao salvar pedido: {erro}")
+            if isinstance(erro, sqlite3.Error):
+                raise BancoDeDadosError(f"Erro no banco ao salvar pedido: {erro}", causa=erro)
             raise
-        except sqlite3.IntegrityError as erro:
-            raise OperacaoInvalidaError(f"Erro de integridade ao salvar pedido: {erro}")
-        except sqlite3.Error as erro:
-            raise BancoDeDadosError(f"Erro no banco ao salvar pedido: {erro}", causa=erro)
 
         pedido.__class__ = PedidoPersistente
         pedido._db = self._db

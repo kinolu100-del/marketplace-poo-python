@@ -97,7 +97,12 @@ class UsuarioRepository:
 
         # Cache de identidade {id_usuario: Usuario} para evitar objetos duplicados em memória
         self._cache: Dict[int, Usuario] = {}
+        self._produto_repo: Optional[Any] = None
         self._sincronizar_gerador_id()
+
+    def vincular_produto_repo(self, produto_repo: Any) -> None:
+        """Vincula a instância única compartilhada de ProdutoRepository para reidratação de carrinhos."""
+        self._produto_repo = produto_repo
 
     @property
     def db(self) -> Database:
@@ -191,8 +196,11 @@ class UsuarioRepository:
             cursor.execute("SELECT produto_id, quantidade FROM carrinho_itens WHERE cliente_id = ?", (uid,))
             itens_banco = cursor.fetchall()
             if itens_banco:
-                from repositories.produto_repository import ProdutoRepository
-                p_repo = ProdutoRepository(db=self._db, usuario_repo=self)
+                p_repo = self._produto_repo
+                if p_repo is None:
+                    from repositories.produto_repository import ProdutoRepository
+                    p_repo = ProdutoRepository(db=self._db, usuario_repo=self)
+                    self._produto_repo = p_repo
                 itens_dict = {}
                 for item_row in itens_banco:
                     prod = p_repo.buscar_por_id(item_row["produto_id"])

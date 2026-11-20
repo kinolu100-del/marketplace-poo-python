@@ -22,10 +22,10 @@ from ui.cli import MarketplaceCLI
 
 def main() -> None:
     """Função de inicialização e injeção de dependências do sistema."""
-    # 1. Camada de Repositórios (Em memória - pronta para Nível 3 / SQLite)
+    # 1. Camada de Repositórios (SQLite Nível 3)
     usuario_repo = UsuarioRepository()
-    produto_repo = ProdutoRepository()
-    pedido_repo = PedidoRepository()
+    produto_repo = ProdutoRepository(usuario_repo=usuario_repo)
+    pedido_repo = PedidoRepository(usuario_repo=usuario_repo, produto_repo=produto_repo)
 
     # 2. Camada de Serviços de Negócio (Regras puras sem input/print)
     usuario_service = UsuarioService(

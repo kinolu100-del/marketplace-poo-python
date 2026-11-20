@@ -255,7 +255,7 @@ erDiagram
     ITENS_PEDIDO {
         INTEGER id PK "AUTOINCREMENT"
         INTEGER pedido_id FK "REFERENCES pedidos(id) ON DELETE CASCADE"
-        INTEGER produto_id FK "REFERENCES produtos(id) ON DELETE CASCADE"
+        INTEGER produto_id FK "REFERENCES produtos(id) ON DELETE RESTRICT"
         INTEGER quantidade "NOT NULL, > 0"
         TEXT preco_unitario "NOT NULL (congelado)"
         TEXT frete "NOT NULL (congelado)"

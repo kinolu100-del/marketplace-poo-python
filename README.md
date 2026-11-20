@@ -59,7 +59,8 @@ Trabalho_POO/
 │   ├── test_services_fluxo.py  # Integração de ponta a ponta e exclusões protegidas
 │   ├── test_usuario_repo.py    # CRUD de usuários SQLite e persistência entre conexões
 │   ├── test_produto_repo.py    # CRUD de produtos SQLite, precisão Decimal e FK de vendedor
-│   └── test_pedido_repo.py     # Transações compostas, rollback por estoque, devolução e carrinho
+│   ├── test_pedido_repo.py     # Transações compostas, rollback por estoque, devolução e carrinho
+│   └── test_nivel3_correcoes.py # Testes multi-sessão: estoque transacional, carrinho e ON DELETE RESTRICT
 │
 └── docs/                       # Documentação Técnica e Diagramas
     ├── uml.md                  # Especificação UML em Mermaid, tabelas conceituais e diagrama ER

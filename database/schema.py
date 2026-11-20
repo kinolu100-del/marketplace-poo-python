@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS itens_pedido (
     preco_unitario TEXT NOT NULL,
     frete TEXT NOT NULL,
     FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE,
-    FOREIGN KEY (produto_id) REFERENCES produtos(id) ON DELETE CASCADE
+    FOREIGN KEY (produto_id) REFERENCES produtos(id) ON DELETE RESTRICT
 );
 """
 

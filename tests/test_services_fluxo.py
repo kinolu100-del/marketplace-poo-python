@@ -149,10 +149,20 @@ def test_regras_de_exclusao_protegida(servicos):
     with pytest.raises(OperacaoInvalidaError):
         u_serv.remover_usuario(cliente.id)
 
-    # Remove produto -> agora vendedor pode ser removido
-    prod_serv.remover_produto(produto.id)
-    u_serv.remover_usuario(vendedor.id)
-    assert len(u_serv.listar_vendedores()) == 0
+    # Não permite remover produto que possui pedidos associados (ON DELETE RESTRICT)
+    with pytest.raises(OperacaoInvalidaError):
+        prod_serv.remover_produto(produto.id)
+
+    # Vendedor com produtos vinculados continua protegido contra exclusão
+    with pytest.raises(OperacaoInvalidaError):
+        u_serv.remover_usuario(vendedor.id)
+
+    # Cadastra novo vendedor com produto não vendido para validar remoção de produto e vendedor
+    vendedor_limpo = u_serv.cadastrar_vendedor("Vendedor Limpo", "v_limpo@email.com", "Loja 2")
+    prod_limpo = prod_serv.cadastrar_produto_fisico("Teclado", Decimal("100.00"), 5, vendedor_limpo.id, Decimal("0.5"))
+    prod_serv.remover_produto(prod_limpo.id)
+    u_serv.remover_usuario(vendedor_limpo.id)
+    assert vendedor_limpo not in u_serv.listar_vendedores()
 
 
 def test_idempotencia_dados_demonstracao(servicos):

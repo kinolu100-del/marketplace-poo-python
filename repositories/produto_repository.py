@@ -49,18 +49,6 @@ class ProdutoFisicoPersistente(ProdutoFisico):
             with self._db.transacao() as conn:
                 conn.execute("UPDATE produtos SET peso_kg = ? WHERE id = ?", (f"{self._peso_kg:.2f}", self.id))
 
-    def baixar_estoque(self, quantidade: int) -> None:
-        super().baixar_estoque(quantidade)
-        if getattr(self, "_db", None):
-            with self._db.transacao() as conn:
-                conn.execute("UPDATE produtos SET estoque = ? WHERE id = ?", (self._estoque, self.id))
-
-    def repor_estoque(self, quantidade: int) -> None:
-        super().repor_estoque(quantidade)
-        if getattr(self, "_db", None):
-            with self._db.transacao() as conn:
-                conn.execute("UPDATE produtos SET estoque = ? WHERE id = ?", (self._estoque, self.id))
-
 
 class ProdutoDigitalPersistente(ProdutoDigital):
     """
@@ -99,18 +87,6 @@ class ProdutoDigitalPersistente(ProdutoDigital):
             with self._db.transacao() as conn:
                 conn.execute("UPDATE produtos SET link_download = ? WHERE id = ?", (self._link_download, self.id))
 
-    def baixar_estoque(self, quantidade: int) -> None:
-        super().baixar_estoque(quantidade)
-        if getattr(self, "_db", None):
-            with self._db.transacao() as conn:
-                conn.execute("UPDATE produtos SET estoque = ? WHERE id = ?", (self._estoque, self.id))
-
-    def repor_estoque(self, quantidade: int) -> None:
-        super().repor_estoque(quantidade)
-        if getattr(self, "_db", None):
-            with self._db.transacao() as conn:
-                conn.execute("UPDATE produtos SET estoque = ? WHERE id = ?", (self._estoque, self.id))
-
 
 class ProdutoRepository:
     """Repositório responsável pela persistência de Produtos em SQLite."""
@@ -129,6 +105,7 @@ class ProdutoRepository:
             self._db = obter_banco_padrao()
 
         self._usuario_repo = usuario_repo or UsuarioRepository(db=self._db)
+        self._usuario_repo.vincular_produto_repo(self)
         self._cache: Dict[int, Produto] = {}
         self._sincronizar_gerador_id()
 
@@ -268,24 +245,44 @@ class ProdutoRepository:
         return [self._reconstruir_produto(row) for row in cursor.fetchall()]
 
     def remover(self, id_produto: int) -> bool:
-        """Remove o produto pelo seu ID."""
+        """
+        Remove o produto pelo seu ID.
+        Se o produto já foi vendido (presente em itens_pedido), a remoção é bloqueada
+        por restrição de integridade referencial com OperacaoInvalidaError.
+        Se a remoção falhar, garante que o produto permaneça associado ao vendedor.
+        """
         conn = self._db.obter_conexao()
         produto = self.buscar_por_id(id_produto)
+
+        # 1. Verificação preventiva no banco de dados para produto vendido
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM itens_pedido WHERE produto_id = ?", (id_produto,))
+        if cursor.fetchone()[0] > 0:
+            if produto and produto.vendedor and produto not in produto.vendedor.produtos:
+                produto.vendedor.adicionar_produto(produto)
+            nome_prod = produto.nome if produto else f"ID {id_produto}"
+            raise OperacaoInvalidaError(
+                f"Não é permitido remover o produto '{nome_prod}' pois o produto possui pedidos associados."
+            )
+
+        # 2. Execução protegida por transação
         try:
             with self._db.transacao():
                 cursor = conn.execute("DELETE FROM produtos WHERE id = ?", (id_produto,))
                 removido = cursor.rowcount > 0
-                if removido:
-                    if id_produto in self._cache:
-                        del self._cache[id_produto]
-                    if produto and produto.vendedor:
-                        produto.vendedor.remover_produto(produto)
+                if removido and id_produto in self._cache:
+                    del self._cache[id_produto]
                 return removido
         except sqlite3.IntegrityError as erro:
+            if produto and produto.vendedor and produto not in produto.vendedor.produtos:
+                produto.vendedor.adicionar_produto(produto)
+            nome_prod = produto.nome if produto else f"ID {id_produto}"
             raise OperacaoInvalidaError(
-                f"Não é permitido remover o produto ID {id_produto} devido a restrições no banco: {erro}"
+                f"Não é permitido remover o produto '{nome_prod}' pois o produto possui pedidos associados: {erro}"
             )
         except sqlite3.Error as erro:
+            if produto and produto.vendedor and produto not in produto.vendedor.produtos:
+                produto.vendedor.adicionar_produto(produto)
             raise BancoDeDadosError(f"Erro ao remover produto: {erro}", causa=erro)
 
     def limpar(self) -> None:
