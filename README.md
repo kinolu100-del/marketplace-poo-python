@@ -286,21 +286,5 @@ python main.py
 ```bash
 pytest -v
 ```
-> Todos os 59 testes executam de forma isolada usando instâncias temporárias do SQLite (`tmp_path`), garantindo que os dados de teste não poluam o banco de produção.
+> Todos os 64 testes executam de forma isolada usando instâncias temporárias do SQLite (`tmp_path`), garantindo que os dados de teste não poluam o banco de produção.
 
----
-
-## Roteiro de Demonstração em Vídeo (Até 6 minutos)
-
-Sugestão de roteiro objetivo para gravação do vídeo de avaliação do Nível 3:
-
-| Minuto | Etapa | Ação no Terminal | O que Explicar |
-| :--- | :--- | :--- | :--- |
-| **0:00 - 0:45** | **1. Introdução e Arquitetura** | Mostrar estrutura de pastas (`tree` ou VS Code) | Explicar o padrão em camadas (Models puros, Services com regras, Repositories SQLite, UI CLI) e ausência de ORM. |
-| **0:45 - 1:30** | **2. Carga Demo e Idempotência** | Iniciar `python main.py`<br>Opção `[5]` (Carga Demo) | Mostrar que a carga populou o banco SQLite. Executar `[5]` novamente para provar **idempotência** (0 produtos novos criados). |
-| **1:30 - 2:30** | **3. Gestão e Edição Defensiva** | Opção `[2]` (Produtos) ➔ `[4]` (Editar)<br>Digitar `"abc"` no preço e `"xyz"` no estoque | Mostrar que a entrada inválida é rejeitada com `[!] Entrada inválida` sem crashar com `[ERRO FATAL]`. Pressionar `[Enter]` para manter valor. |
-| **2:30 - 3:30** | **4. Carrinho e Compra (Checkout)** | Opção `[3]` ➔ Adicionar ao carrinho (Cliente 3, Produto 1, Qtd 2)<br>Opção `[4]` ➔ Finalizar compra | Mostrar que o pedido foi gerado com **preço congelado**, taxa de frete aplicada e o estoque do produto baixou. |
-| **3:30 - 4:15** | **5. Cancelamento de Pedido** | Opção `[4]` ➔ Cancelar pedido `1` | Mostrar que em uma única transação atômica o status virou `Cancelado` e o estoque foi estornado. |
-| **4:15 - 5:15** | **6. Comprovação de Persistência** | Encerrar o programa (`[0]`)<br>Reabrir: `python main.py`<br>Opção `[4]` ➔ `[2]` (Listar pedidos) | Provar que ao fechar e reabrir o terminal, o pedido cancelado e todo o histórico permanecem no SQLite (`marketplace.db`). |
-| **5:15 - 5:45** | **7. Reiniciar o Banco** | Opção `[6]` (Zerar Banco) ➔ Confirmar com `s` | Demonstrar a funcionalidade de limpeza rápida para reiniciar gravações. |
-| **5:45 - 6:00** | **8. Testes Automatizados** | Rodar `pytest -v` no terminal | Mostrar todos os 59 testes passando com sucesso. |
