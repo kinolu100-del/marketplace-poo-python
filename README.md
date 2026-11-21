@@ -42,8 +42,20 @@ Trabalho_POO/
 │
 ├── ui/                         # Camada de Apresentação e Interação com o Usuário
 │   ├── __init__.py
-│   ├── cli.py                  # Menus interativos, captura de fluxos, validação defensiva e exibição
-│   └── helpers.py              # Formatação de moeda (Decimal), separadores e leituras defensivas opcionais
+│   ├── cli.py                  # Interface de console por texto (CLI interativa)
+│   ├── helpers.py              # Formatação de moeda, consolidado de frete e leituras validadas
+│   └── gui/                    # Interface Gráfica Desktop (Nível 4 - Tkinter/ttk)
+│       ├── __init__.py
+│       ├── app.py              # Janela principal com abas responsivas, cabeçalho e statusbar
+│       ├── estilos.py          # Tema escuro personalizado, paleta moderna e mapeamento ttk.Style
+│       ├── formatters.py       # Formatadores puros de dados para visualização em Treeviews
+│       ├── validators.py       # Validadores puros de dados de formulário desacoplados da tela
+│       ├── usuarios_view.py    # Aba de usuários com filtragem e modal de cadastro/edição
+│       ├── produtos_view.py    # Aba de catálogo com filtragem e modal polimórfico
+│       ├── carrinho_view.py    # Aba de carrinho com cálculo em tempo real e modal de checkout
+│       ├── pedidos_view.py     # Aba de pedidos com cancelamento e devolução atômica de estoque
+│       ├── ferramentas_view.py # Aba de carga demo idempotente e reinicialização segura do banco
+│       └── detalhes_pedido_modal.py # Modal de detalhamento e mensagens polimórficas de entrega
 │
 ├── tests/                      # Testes automatizados (pytest)
 │   ├── __init__.py
@@ -60,7 +72,8 @@ Trabalho_POO/
 │   ├── test_usuario_repo.py    # CRUD de usuários SQLite e persistência entre conexões
 │   ├── test_produto_repo.py    # CRUD de produtos SQLite, precisão Decimal e FK de vendedor
 │   ├── test_pedido_repo.py     # Transações compostas, rollback por estoque, devolução e carrinho
-│   └── test_nivel3_correcoes.py # Testes multi-sessão: estoque transacional, carrinho e ON DELETE RESTRICT
+│   ├── test_nivel3_correcoes.py # Testes multi-sessão: estoque transacional, carrinho e ON DELETE RESTRICT
+│   └── test_gui_helpers.py     # Resumo de frete consolidado, formatadores e validadores GUI headless
 │
 └── docs/                       # Documentação Técnica e Diagramas
     ├── uml.md                  # Especificação UML em Mermaid, tabelas conceituais e diagrama ER
@@ -270,21 +283,44 @@ O sistema opera com persistência relacional completa no arquivo `marketplace.db
 
 ---
 
+## Nível 4: Interface Gráfica Desktop (Desk App IV - Tkinter / ttk)
+
+O sistema conta com interface visual moderna e responsiva em tema escuro (`ui/gui/`), construída exclusivamente com a biblioteca padrão Python (`tkinter` e `ttk`), preservando o desacoplamento e compartilhando os **mesmos repositórios SQLite e serviços puros** que a CLI já utiliza.
+
+### Destaques da GUI (Nível 4):
+1. **Padrão Dual (CLI ou GUI):** O ponto de entrada unificado `main.py` permite executar a CLI tradicional ou a interface desktop via argumento `--gui`.
+2. **Tema Escuro Moderno (`estilos.py`):** Configuração global de paleta escura (`#12131D`, `#1A1B2A`, `#25273C`), fontes Segoe UI, botões estilizados (Primário, Sucesso, Perigo e Secundário), linhas zebradas na Treeview e barra de status dinâmica.
+3. **Módulos em Abas Especializadas:**
+   - **👥 Usuários:** Tabela paginada, filtros por perfil e modal com alternância dinâmica de campos (Endereço para Cliente / Loja para Vendedor).
+   - **📦 Produtos:** Tabela de catálogo com dados polimórficos e modal com campos contextuais para produtos físicos (peso) e digitais (tamanho/download).
+   - **🛒 Carrinho:** Seleção de cliente ativo, adição com controle de estoque, alteração de quantidades e **cálculo consolidado de frete em tempo real**.
+   - **📋 Pedidos:** Histórico de compras com congelamento de valores, cancelamento com reposição atômica de estoque e modal de instruções polimórficas de entrega (`mensagem_entrega()`).
+   - **⚙️ Ferramentas:** Carga de dados demo idempotente e reinicialização completa/segura do banco SQLite com confirmação modal.
+4. **Desacoplamento e Testabilidade Headless:** Formatadores (`formatters.py`) e validadores (`validators.py`) são funções puras sem dependência de janelas, permitindo cobertura automatizada no pytest sem necessidade de display gráfico.
+
+---
+
 ## Como Executar
 
 ### 1. Requisitos:
 - Python 3.10 ou superior.
-- `pytest` (única dependência de desenvolvimento para os testes).
+- `pytest` (única dependência de desenvolvimento para a suíte de testes).
 
-### 2. Rodando a Aplicação:
+### 2. Rodando a Aplicação Desktop (Interface Gráfica - Nível 4):
+```bash
+python main.py --gui
+```
+> Abre a janela principal com abas, tema escuro e todas as operações visuais.
+
+### 3. Rodando no Console (Interface CLI - Níveis 1 a 3):
 ```bash
 python main.py
 ```
-> O arquivo de banco de dados `marketplace.db` será criado automaticamente se ainda não existir.
+> O arquivo de banco de dados `marketplace.db` será criado/conectado automaticamente em ambos os modos.
 
-### 3. Rodando os Testes Automatizados:
+### 4. Rodando os Testes Automatizados:
 ```bash
 pytest -v
 ```
-> Todos os 64 testes executam de forma isolada usando instâncias temporárias do SQLite (`tmp_path`), garantindo que os dados de teste não poluam o banco de produção.
+> Todos os 79 testes executam de forma isolada usando instâncias temporárias do SQLite (`tmp_path`), além de testes headless para os utilitários e chamadas de serviço da GUI.
 

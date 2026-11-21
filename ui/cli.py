@@ -36,6 +36,7 @@ from ui.helpers import (
     ler_decimal_opcional,
     ler_email,
     confirmar,
+    calcular_resumo_frete,
 )
 
 
@@ -583,29 +584,24 @@ class MarketplaceCLI:
             print(f"  [!] O carrinho de '{cliente.nome}' está vazio.")
             return
 
-        # Prévia do pedido antes da confirmação
+        # Prévia do pedido antes da confirmação via função compartilhada de cálculo de frete
         print(f"\nResumo prévio da compra para {cliente.nome}:")
         linha("-")
-        tem_fisico = any(item.produto.tipo() == "Físico" for item in carrinho.itens)
-        frete_previo = sum((item.produto.calcular_frete(item.quantidade) for item in carrinho.itens), Decimal("0.00"))
-        taxa_pedido = Decimal("10.00") if tem_fisico else Decimal("0.00")
-        frete_total_previo = frete_previo + taxa_pedido
+        resumo = calcular_resumo_frete(carrinho)
 
-        for item in carrinho.itens:
-            prod = item.produto
-            frete_item = prod.calcular_frete(item.quantidade)
+        for item_det in resumo.itens:
             print(
-                f"   • {prod.nome} ({prod.tipo()}) x{item.quantidade:02d} | "
-                f"Unitário: {moeda(prod.preco)} | Subtotal: {moeda(item.subtotal)} | "
-                f"Frete Variável: {moeda(frete_item)}"
+                f"   • {item_det.nome} ({item_det.tipo}) x{item_det.quantidade:02d} | "
+                f"Unitário: {moeda(item_det.preco_unitario)} | Subtotal: {moeda(item_det.subtotal)} | "
+                f"Frete Variável: {moeda(item_det.frete)}"
             )
 
-        print(f"\nSubtotal Produtos:          {moeda(carrinho.subtotal)}")
-        if tem_fisico:
-            print(f"Frete Variável (Peso):      {moeda(frete_previo)}")
-            print(f"Taxa Fixa do Pedido Físico: {moeda(taxa_pedido)} (Cobrada uma única vez por pedido)")
-        print(f"Frete Total:                {moeda(frete_total_previo)}")
-        print(f"VALOR TOTAL ESTIMADO:       {moeda(carrinho.subtotal + frete_total_previo)}")
+        print(f"\nSubtotal Produtos:          {moeda(resumo.subtotal_produtos)}")
+        if resumo.tem_produto_fisico:
+            print(f"Frete Variável (Peso):      {moeda(resumo.frete_variavel)}")
+            print(f"Taxa Fixa do Pedido Físico: {moeda(resumo.taxa_fixa_pedido)} (Cobrada uma única vez por pedido)")
+        print(f"Frete Total:                {moeda(resumo.frete_total)}")
+        print(f"VALOR TOTAL ESTIMADO:       {moeda(resumo.total_estimado)}")
         linha()
 
         if not confirmar("Deseja confirmar e finalizar este pedido agora?"):

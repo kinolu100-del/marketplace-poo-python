@@ -49,16 +49,24 @@ def main() -> None:
         produto_repo=produto_repo,
     )
 
-    # 3. Camada de Apresentação (Console CLI)
-    cli = MarketplaceCLI(
-        usuario_service=usuario_service,
-        produto_service=produto_service,
-        pedido_service=pedido_service,
-        demonstracao_service=demonstracao_service,
-    )
-
-    # 4. Início da execução
-    cli.executar()
+    # 3. Camada de Apresentação (GUI Tkinter ou Console CLI)
+    if "--gui" in sys.argv:
+        from ui.gui.app import MarketplaceGUI
+        app = MarketplaceGUI(
+            usuario_service=usuario_service,
+            produto_service=produto_service,
+            pedido_service=pedido_service,
+            demonstracao_service=demonstracao_service,
+        )
+        app.mainloop()
+    else:
+        cli = MarketplaceCLI(
+            usuario_service=usuario_service,
+            produto_service=produto_service,
+            pedido_service=pedido_service,
+            demonstracao_service=demonstracao_service,
+        )
+        cli.executar()
 
 
 if __name__ == "__main__":

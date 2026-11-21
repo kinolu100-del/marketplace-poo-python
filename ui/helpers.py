@@ -8,9 +8,10 @@ do usuário e tratamento de erros de digitação no console.
 """
 
 from __future__ import annotations
+from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import re
-from typing import Optional, Union
+from typing import Optional, Union, List, Any
 
 
 def moeda(valor: Union[Decimal, float, int]) -> str:
@@ -168,3 +169,75 @@ def confirmar(mensagem: str) -> bool:
         if resposta in ("n", "nao", "não"):
             return False
         print("  [!] Responda apenas com 's' para sim ou 'n' para não.")
+
+
+@dataclass
+class DetalheItemResumo:
+    """Estrutura imutável de detalhamento por item no resumo prévio de compra."""
+    produto_id: int
+    nome: str
+    tipo: str
+    preco_unitario: Decimal
+    quantidade: int
+    subtotal: Decimal
+    frete: Decimal
+
+
+@dataclass
+class ResumoFreteCarrinho:
+    """Consolidação dos cálculos de frete e totais estimados de um carrinho."""
+    subtotal_produtos: Decimal
+    tem_produto_fisico: bool
+    frete_variavel: Decimal
+    taxa_fixa_pedido: Decimal
+    frete_total: Decimal
+    total_estimado: Decimal
+    itens: list[DetalheItemResumo]
+
+
+def calcular_resumo_frete(carrinho: Any) -> ResumoFreteCarrinho:
+    """
+    Calcula o resumo consolidado de valores e frete para um carrinho de compras:
+      - Subtotal dos produtos
+      - Frete variável proporcional ao peso (polimórfico)
+      - Taxa fixa única de R$ 10,00 se contiver ao menos um produto físico
+      - Frete total e valor geral estimado
+      - Detalhamento item a item
+    """
+    itens_detalhes: list[DetalheItemResumo] = []
+    tem_fisico = False
+    frete_variavel = Decimal("0.00")
+
+    for item in carrinho.itens:
+        prod = item.produto
+        tipo_str = prod.tipo()
+        if tipo_str == "Físico":
+            tem_fisico = True
+        frete_item = prod.calcular_frete(item.quantidade)
+        frete_variavel += frete_item
+        itens_detalhes.append(
+            DetalheItemResumo(
+                produto_id=prod.id,
+                nome=prod.nome,
+                tipo=tipo_str,
+                preco_unitario=prod.preco,
+                quantidade=item.quantidade,
+                subtotal=item.subtotal,
+                frete=frete_item,
+            )
+        )
+
+    taxa_pedido = Decimal("10.00") if tem_fisico else Decimal("0.00")
+    frete_total = (frete_variavel + taxa_pedido).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    subtotal = carrinho.subtotal
+    total_estimado = (subtotal + frete_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    return ResumoFreteCarrinho(
+        subtotal_produtos=subtotal,
+        tem_produto_fisico=tem_fisico,
+        frete_variavel=frete_variavel.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+        taxa_fixa_pedido=taxa_pedido.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+        frete_total=frete_total,
+        total_estimado=total_estimado,
+        itens=itens_detalhes,
+    )
